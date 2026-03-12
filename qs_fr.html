@@ -77,7 +77,7 @@ const FEEDBACK_INCOMPLET_FIN_HTML =
 const FEEDBACK_FIN_HTML =
   "Merci ! Vous pouvez <b>valider</b> ou <b>recommencer</b>.";
 
-const nPoints = 10;
+const nPoints = 100;
 const qsNumber = 1;
 const tolerance = 5;
 
@@ -299,48 +299,48 @@ resetBtn.addEventListener("click", () => {
 
 /* ================= EXPORT VERS LIMESURVEY ================= */
 saveBtn.addEventListener("click", () => {
+
   let scores = [];
 
   for (let i = 0; i < nPoints; i++) {
+
     const xmin = xStart + i * intervalWidth;
     const xmax = (i === nPoints - 1) ? xEnd + 0.001 : xmin + intervalWidth;
 
     const ptsInBin = points.filter(p => p.x >= xmin && p.x < xmax);
 
     if (ptsInBin.length > 0) {
+
       const yMean =
         ptsInBin.reduce((sum, p) => sum + p.y, 0) / ptsInBin.length;
+
       scores.push(yToScore(yMean));
+
     } else {
+
       scores.push(null);
+
     }
   }
 
   const payload = {
     questionNumber: qsNumber,
     timestamp: new Date().toISOString(),
-    scores: scores,
-    points: points.map(p => ({
-      x: Number(p.x.toFixed(2)),
-      y: Number(p.y.toFixed(2))
-    }))
+    scores: scores
   };
 
-  window.parent.postMessage(
-    {
-      type: "graphData",
-      payload: payload
-    },
-    "*"
-  );
+  window.parent.postMessage({
+    type: "graphData",
+    payload: payload
+  }, "*");
 
   info.innerHTML = "Merci ! Votre réponse a été enregistrée.";
-  info.style.color = "black";
 
   saveBtn.disabled = true;
   resetBtn.disabled = true;
   hasValidated = true;
   canvas.style.pointerEvents = "none";
+
 });
 </script>
 
