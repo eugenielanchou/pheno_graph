@@ -298,17 +298,18 @@ resetBtn.addEventListener("click", () => {
 });
 
 /* ================= EXPORT VERS LIMESURVEY ================= */
-saveBtn.addEventListener("click", async () => {
+saveBtn.addEventListener("click", () => {
   let scores = [];
 
   for (let i = 0; i < nPoints; i++) {
     const xmin = xStart + i * intervalWidth;
-    const xmax = xmin + i + 1 === nPoints ? xEnd + 1 : xmin + intervalWidth;
+    const xmax = xmin + intervalWidth;
 
     const ptsInBin = points.filter(p => p.x >= xmin && p.x < xmax);
 
-    if (ptsInBin.length) {
-      const yMean = ptsInBin.reduce((sum, p) => sum + p.y, 0) / ptsInBin.length;
+    if (ptsInBin.length > 0) {
+      const yMean =
+        ptsInBin.reduce((sum, p) => sum + p.y, 0) / ptsInBin.length;
       scores.push(yToScore(yMean));
     } else {
       scores.push(null);
@@ -325,10 +326,13 @@ saveBtn.addEventListener("click", async () => {
     }))
   };
 
-  window.parent.postMessage({
-    type: "graphData",
-    payload: payload
-  }, "*");
+  window.parent.postMessage(
+    {
+      type: "graphData",
+      payload: payload
+    },
+    "*"
+  );
 
   info.innerHTML = "Merci ! Votre réponse a été enregistrée.";
   info.style.color = "black";
