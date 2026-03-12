@@ -1,61 +1,63 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Tracer votre perception dans le temps</title>
-<style>
-html, body {
-  margin: 0;
-  height: 100%;
-  font-family: Arial, sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+  <meta charset="UTF-8">
+  <title>Interface de tracé</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: white;
+    }
 
-.graph-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-}
+    .graph-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      width: 100%;
+    }
 
-#info {
-  font-size: 18px;
-  text-align: center;
-  max-width: 720px;
-}
+    #info {
+      font-size: 18px;
+      text-align: center;
+      max-width: 900px;
+      min-height: 28px;
+    }
 
-#canvas {
-  background: white;
-  border: 1px solid #ccc;
-  touch-action: none;
-}
+    #canvas {
+      background: white;
+      border: 1px solid #ccc;
+      touch-action: none;
+    }
 
-.buttons {
-  display: flex;
-  gap: 20px;
-}
+    .buttons {
+      display: flex;
+      gap: 20px;
+    }
 
-button {
-  padding: 14px 20px;
-  background-color: rgb(137,210,235);
-  font-size: 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
+    button {
+      padding: 14px 20px;
+      background-color: rgb(137,210,235);
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
 
-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-</style>
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
 </head>
 <body>
 
 <div id="task" class="graph-container">
-  <h2>Estimez (question1) dans le temps</h2>
   <div id="info"></div>
   <canvas id="canvas"></canvas>
   <div class="buttons">
@@ -65,6 +67,10 @@ button:disabled {
 </div>
 
 <script>
+/* ================= PARAMÈTRES URL ================= */
+const params = new URLSearchParams(window.location.search);
+const questionCode = params.get("questionCode") || null;
+
 /* ================= CONSTANTES ================= */
 const CONSIGNE_HTML =
   "Veuillez tracer <b>une seule courbe</b> allant du <b>début jusqu'à la fin</b> de l’intervalle de temps.";
@@ -78,7 +84,6 @@ const FEEDBACK_FIN_HTML =
   "Merci ! Vous pouvez <b>valider</b> ou <b>recommencer</b>.";
 
 const nPoints = 100;
-const qsNumber = 1;
 const tolerance = 5;
 
 /* ================= DOM ================= */
@@ -113,7 +118,7 @@ resizeCanvas();
 /* ================= CANVAS ================= */
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const width = Math.min(window.innerWidth * 0.75, 900);
+  const width = Math.min(window.innerWidth * 0.85, 950);
   const height = Math.min(window.innerHeight * 0.65, 500);
 
   canvas.style.width = width + "px";
@@ -155,8 +160,8 @@ function drawGrid() {
     ctx.stroke();
   }
 
-  for (let i = 0; i <= nPoints; i++) {
-    const x = xStart + i * intervalWidth;
+  for (let i = 0; i <= 10; i++) {
+    const x = xStart + i * ((xEnd - xStart) / 10);
     ctx.beginPath();
     ctx.moveTo(x, yStart);
     ctx.lineTo(x, yEnd);
@@ -217,11 +222,8 @@ function drawSmoothCurve(pts) {
     ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
   }
 
-  if (pts.length > 1) {
-    const last = pts[pts.length - 1];
-    ctx.lineTo(last.x, last.y);
-  }
-
+  const last = pts[pts.length - 1];
+  ctx.lineTo(last.x, last.y);
   ctx.stroke();
 }
 
@@ -247,11 +249,9 @@ canvas.addEventListener("pointermove", (e) => {
       return;
     } else {
       startedCorrectly = true;
-      if (wasIncorrectStart) {
-        info.innerHTML = FEEDBACK_INCOMPLET_DEBUT_PUIS_OK_HTML;
-      } else {
-        info.innerHTML = CONSIGNE_HTML;
-      }
+      info.innerHTML = wasIncorrectStart
+        ? FEEDBACK_INCOMPLET_DEBUT_PUIS_OK_HTML
+        : CONSIGNE_HTML;
       info.style.color = "black";
     }
   }
@@ -299,48 +299,42 @@ resetBtn.addEventListener("click", () => {
 
 /* ================= EXPORT VERS LIMESURVEY ================= */
 saveBtn.addEventListener("click", () => {
-
   let scores = [];
 
   for (let i = 0; i < nPoints; i++) {
-
     const xmin = xStart + i * intervalWidth;
     const xmax = (i === nPoints - 1) ? xEnd + 0.001 : xmin + intervalWidth;
 
     const ptsInBin = points.filter(p => p.x >= xmin && p.x < xmax);
 
     if (ptsInBin.length > 0) {
-
-      const yMean =
-        ptsInBin.reduce((sum, p) => sum + p.y, 0) / ptsInBin.length;
-
+      const yMean = ptsInBin.reduce((sum, p) => sum + p.y, 0) / ptsInBin.length;
       scores.push(yToScore(yMean));
-
     } else {
-
       scores.push(null);
-
     }
   }
 
   const payload = {
-    questionNumber: qsNumber,
-    timestamp: new Date().toISOString(),
+    questionCode: questionCode,
     scores: scores
   };
 
-  window.parent.postMessage({
-    type: "graphData",
-    payload: payload
-  }, "*");
+  window.parent.postMessage(
+    {
+      type: "graphData",
+      payload: payload
+    },
+    "*"
+  );
 
   info.innerHTML = "Merci ! Votre réponse a été enregistrée.";
+  info.style.color = "black";
 
   saveBtn.disabled = true;
   resetBtn.disabled = true;
   hasValidated = true;
   canvas.style.pointerEvents = "none";
-
 });
 </script>
 
