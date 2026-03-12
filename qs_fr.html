@@ -303,7 +303,7 @@ saveBtn.addEventListener("click", () => {
 
   for (let i = 0; i < nPoints; i++) {
     const xmin = xStart + i * intervalWidth;
-    const xmax = xmin + intervalWidth;
+    const xmax = (i === nPoints - 1) ? xEnd + 0.001 : xmin + intervalWidth;
 
     const ptsInBin = points.filter(p => p.x >= xmin && p.x < xmax);
 
