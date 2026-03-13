@@ -378,17 +378,10 @@ function buildScores() {
 saveBtn.addEventListener("click", () => {
   if (hasValidated) return;
 
-  const scores = buildScores();
-
-  // qualité raisonnable pour éviter une base64 gigantesque
-  const screenshot = canvas.toDataURL("image/png");
+  const scores = buildScores(); // produit exactement 50 points
 
   const payload = {
-    completed: true,
-    scores: scores,
-    scoresCsv: scores.join(","),
-    scoresJson: JSON.stringify(scores),
-    screenshot: screenshot
+    points: scores
   };
 
   window.parent.postMessage(
