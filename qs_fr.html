@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Interface de tracé</title>
   <style>
     html, body {
@@ -20,6 +21,8 @@
       align-items: center;
       gap: 15px;
       width: 100%;
+      padding: 16px;
+      box-sizing: border-box;
     }
 
     #info {
@@ -33,11 +36,14 @@
       background: white;
       border: 1px solid #ccc;
       touch-action: none;
+      max-width: 100%;
     }
 
     .buttons {
       display: flex;
       gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
     button {
@@ -61,16 +67,12 @@
   <div id="info"></div>
   <canvas id="canvas"></canvas>
   <div class="buttons">
-    <button id="reset">Recommencer</button>
-    <button id="save" disabled>Valider</button>
+    <button id="reset" type="button">Recommencer</button>
+    <button id="save" type="button" disabled>Valider</button>
   </div>
 </div>
 
 <script>
-/* ================= PARAMÈTRES URL ================= */
-const params = new URLSearchParams(window.location.search);
-const questionCode = params.get("questionCode") || null;
-
 /* ================= CONSTANTES ================= */
 const CONSIGNE_HTML =
   "Veuillez tracer <b>une seule courbe</b> allant du <b>début jusqu'à la fin</b> de l’intervalle de temps.";
@@ -110,6 +112,11 @@ function yToScore(y) {
   return Number((ratio * 5).toFixed(2));
 }
 
+function scoreToY(score) {
+  const ratio = score / 5;
+  return yEnd - ratio * (yEnd - yStart);
+}
+
 /* ================= INIT ================= */
 info.innerHTML = CONSIGNE_HTML;
 info.style.color = "black";
@@ -123,8 +130,8 @@ function resizeCanvas() {
 
   canvas.style.width = width + "px";
   canvas.style.height = height + "px";
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
@@ -283,6 +290,10 @@ canvas.addEventListener("pointerup", (e) => {
   }
 });
 
+canvas.addEventListener("pointerleave", () => {
+  drawing = false;
+});
+
 /* ================= RESET ================= */
 resetBtn.addEventListener("click", () => {
   if (hasValidated) return;
@@ -297,9 +308,9 @@ resetBtn.addEventListener("click", () => {
   drawGrid();
 });
 
-/* ================= EXPORT VERS LIMESURVEY ================= */
-saveBtn.addEventListener("click", () => {
-  let scores = [];
+/* ================= EXTRACTION DES 50 POINTS ================= */
+function buildScores() {
+  const rawScores = [];
 
   for (let i = 0; i < nPoints; i++) {
     const xmin = xStart + i * intervalWidth;
@@ -309,19 +320,77 @@ saveBtn.addEventListener("click", () => {
 
     if (ptsInBin.length > 0) {
       const yMean = ptsInBin.reduce((sum, p) => sum + p.y, 0) / ptsInBin.length;
-      scores.push(yToScore(yMean));
+      rawScores.push(yToScore(yMean));
     } else {
-      scores.push(null);
+      rawScores.push(null);
     }
   }
 
-  const image = canvas.toDataURL("image/png");
+  // interpolation linéaire des valeurs nulles
+  const scores = [...rawScores];
+
+  // remplit depuis la gauche
+  let firstKnown = scores.findIndex(v => v !== null);
+  if (firstKnown > 0) {
+    for (let i = 0; i < firstKnown; i++) scores[i] = scores[firstKnown];
+  }
+
+  // remplit depuis la droite
+  let lastKnown = -1;
+  for (let i = scores.length - 1; i >= 0; i--) {
+    if (scores[i] !== null) {
+      lastKnown = i;
+      break;
+    }
+  }
+  if (lastKnown >= 0 && lastKnown < scores.length - 1) {
+    for (let i = lastKnown + 1; i < scores.length; i++) scores[i] = scores[lastKnown];
+  }
+
+  // interpolation des trous internes
+  let i = 0;
+  while (i < scores.length) {
+    if (scores[i] !== null) {
+      i++;
+      continue;
+    }
+
+    let start = i - 1;
+    let j = i;
+    while (j < scores.length && scores[j] === null) j++;
+    let end = j;
+
+    if (start >= 0 && end < scores.length && scores[start] !== null && scores[end] !== null) {
+      const gap = end - start;
+      for (let k = 1; k < gap; k++) {
+        const t = k / gap;
+        scores[start + k] = Number((scores[start] + t * (scores[end] - scores[start])).toFixed(2));
+      }
+    }
+
+    i = j;
+  }
+
+  return scores.map(v => v === null ? 0 : Number(v.toFixed(2)));
+}
+
+/* ================= EXPORT VERS LIMESURVEY ================= */
+saveBtn.addEventListener("click", () => {
+  if (hasValidated) return;
+
+  const scores = buildScores();
+
+  // qualité raisonnable pour éviter une base64 gigantesque
+  const screenshot = canvas.toDataURL("image/png");
+
   const payload = {
-    questionCode: questionCode,
+    completed: true,
     scores: scores,
-    screenshot: image
+    scoresCsv: scores.join(","),
+    scoresJson: JSON.stringify(scores),
+    screenshot: screenshot
   };
-  
+
   window.parent.postMessage(
     {
       type: "graphData",
