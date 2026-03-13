@@ -315,11 +315,13 @@ saveBtn.addEventListener("click", () => {
     }
   }
 
+  const image = canvas.toDataURL("image/png");
   const payload = {
     questionCode: questionCode,
-    scores: scores
+    scores: scores,
+    screenshot: image
   };
-
+  
   window.parent.postMessage(
     {
       type: "graphData",
