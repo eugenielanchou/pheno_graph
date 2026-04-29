@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interface de tracé</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: white;
+    }
+
+    .graph-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      width: 100%;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    #info {
+      font-size: 18px;
+      text-align: center;
+      max-width: 900px;
+      min-height: 28px;
+    }
+
+    #canvas {
+      background: white;
+      border: 1px solid #ccc;
+      touch-action: none;
+      max-width: 100%;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      padding: 14px 20px;
+      background-color: rgb(137,210,235);
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+<div id="task" class="graph-container">
+  <div id="info"></div>
+  <canvas id="canvas"></canvas>
+  <div class="buttons">
+    <button id="reset" type="button">Recommencer</button>
+    <button id="save" type="button" disabled>Valider</button>
+  </div>
+</div>
+
+<script>
+/* ================= CONSTANTES ================= */
+const CONSIGNE_HTML =
+  "Veuillez tracer <b>une seule courbe</b> allant du <b>début jusqu'à la fin</b> de l’intervalle de temps.";
+const FEEDBACK_INCOMPLET_DEBUT_HTML =
+  "Veuillez commencer au <b><u>début</u></b> de l’intervalle de temps.";
+const FEEDBACK_INCOMPLET_DEBUT_PUIS_OK_HTML =
+  "Merci ! Maintenant, continuez jusqu’à la fin de l’intervalle.";
+const FEEDBACK_INCOMPLET_FIN_HTML =
+  "Veuillez tracer jusqu’à la <b><u>fin</u></b> de l’intervalle de temps.";
+const FEEDBACK_FIN_HTML =
+  "Merci ! Vous pouvez <b>valider</b> ou <b>recommencer</b>.";
+
+const nPoints = 50;
+const tolerance = 5;
+
+/* ================= DOM ================= */
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const info = document.getElementById("info");
+const saveBtn = document.getElementById("save");
+const resetBtn = document.getElementById("reset");
+
+/* ================= ÉTAT ================= */
+let xStart, xEnd, yStart, yEnd, intervalWidth;
+let drawing = false;
+let points = [];
+let maxXReached = null;
+let startedCorrectly = false;
+let wasIncorrectStart = false;
+let hasValidated = false;
+
+/* ================= UTILITAIRES ================= */
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+function yToScore(y) {
+  const ratio = (yEnd - y) / (yEnd - yStart);
+  return Number((ratio * 5).toFixed(2));
+}
+
+function scoreToY(score) {
+  const ratio = score / 5;
+  return yEnd - ratio * (yEnd - yStart);
+}
+
+/* ================= INIT ================= */
+info.innerHTML = CONSIGNE_HTML;
+info.style.color = "black";
+resizeCanvas();
+
+/* ================= CANVAS ================= */
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.min(window.innerWidth * 0.85, 950);
+  const height = Math.min(window.innerHeight * 0.65, 500);
+
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+
+  drawGrid();
+  drawSmoothCurve(points);
+}
+
+window.addEventListener("resize", resizeCanvas);
+
+function drawGrid() {
+  const w = parseFloat(canvas.style.width);
+  const h = parseFloat(canvas.style.height);
+
+  xStart = w * 0.08;
+  xEnd = w * 0.95;
+  yStart = h * 0.05;
+  yEnd = h * 0.85;
+  intervalWidth = (xEnd - xStart) / nPoints;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const stepY = (yEnd - yStart) / 5;
+
+  ctx.strokeStyle = "#eee";
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= 5; i++) {
+    const y = yEnd - i * stepY;
+    ctx.beginPath();
+    ctx.moveTo(xStart, y);
+    ctx.lineTo(xEnd, y);
+    ctx.stroke();
+  }
+
+  for (let i = 0; i <= 10; i++) {
+    const x = xStart + i * ((xEnd - xStart) / 10);
+    ctx.beginPath();
+    ctx.moveTo(x, yStart);
+    ctx.lineTo(x, yEnd);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(xStart, yEnd);
+  ctx.lineTo(xEnd, yEnd);
+  ctx.moveTo(xStart, yEnd);
+  ctx.lineTo(xStart, yStart);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(xEnd, yEnd);
+  ctx.lineTo(xEnd - 10, yEnd - 5);
+  ctx.lineTo(xEnd - 10, yEnd + 5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(xStart, yStart);
+  ctx.lineTo(xStart - 5, yStart + 10);
+  ctx.lineTo(xStart + 5, yStart + 10);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.font = "18px Arial";
+  ctx.fillText("Temps", xEnd - 60, yEnd + 35);
+
+  ctx.save();
+  ctx.translate(22, h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("Intensité", 0, 0);
+  ctx.restore();
+
+  ctx.font = "14px Arial";
+  for (let i = 0; i <= 5; i++) {
+    const y = yEnd - i * stepY;
+    ctx.fillText(i.toString(), 25, y + 5);
+  }
+}
+
+/* ================= COURBE ================= */
+function drawSmoothCurve(pts) {
+  if (pts.length < 2) return;
+
+  ctx.strokeStyle = "rgb(0,144,192)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+
+  for (let i = 1; i < pts.length - 1; i++) {
+    const xc = (pts[i].x + pts[i + 1].x) / 2;
+    const yc = (pts[i].y + pts[i + 1].y) / 2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+  }
+
+  const last = pts[pts.length - 1];
+  ctx.lineTo(last.x, last.y);
+  ctx.stroke();
+}
+
+/* ================= INTERACTIONS ================= */
+canvas.addEventListener("pointerdown", (e) => {
+  if (hasValidated) return;
+  drawing = true;
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", (e) => {
+  if (!drawing || hasValidated) return;
+
+  const r = canvas.getBoundingClientRect();
+  const x = clamp(e.clientX - r.left, xStart, xEnd);
+  const y = clamp(e.clientY - r.top, yStart, yEnd);
+
+  if (!startedCorrectly && points.length === 0) {
+    if (x > xStart + tolerance) {
+      info.innerHTML = FEEDBACK_INCOMPLET_DEBUT_HTML;
+      info.style.color = "crimson";
+      wasIncorrectStart = true;
+      return;
+    } else {
+      startedCorrectly = true;
+      info.innerHTML = wasIncorrectStart
+        ? FEEDBACK_INCOMPLET_DEBUT_PUIS_OK_HTML
+        : CONSIGNE_HTML;
+      info.style.color = "black";
+    }
+  }
+
+  if (maxXReached !== null && x < maxXReached) return;
+
+  maxXReached = x;
+  points.push({ x, y });
+
+  drawGrid();
+  drawSmoothCurve(points);
+
+  if (x >= xEnd - tolerance) {
+    saveBtn.disabled = false;
+    info.innerHTML = FEEDBACK_FIN_HTML;
+    info.style.color = "black";
+  }
+});
+
+canvas.addEventListener("pointerup", (e) => {
+  drawing = false;
+  try {
+    canvas.releasePointerCapture(e.pointerId);
+  } catch (_) {}
+
+  if (startedCorrectly && maxXReached !== null && maxXReached < xEnd - tolerance) {
+    info.innerHTML = FEEDBACK_INCOMPLET_FIN_HTML;
+    info.style.color = "crimson";
+  }
+});
+
+canvas.addEventListener("pointerleave", () => {
+  drawing = false;
+});
+
+/* ================= RESET ================= */
+resetBtn.addEventListener("click", () => {
+  if (hasValidated) return;
+
+  points = [];
+  maxXReached = null;
+  startedCorrectly = false;
+  wasIncorrectStart = false;
+  saveBtn.disabled = true;
+  info.innerHTML = CONSIGNE_HTML;
+  info.style.color = "black";
+  drawGrid();
+});
+
+/* ================= EXTRACTION DES 50 POINTS ================= */
+function buildScores() {
+  const rawScores = [];
+
+  for (let i = 0; i < nPoints; i++) {
+    const xmin = xStart + i * intervalWidth;
+    const xmax = (i === nPoints - 1) ? xEnd + 0.001 : xmin + intervalWidth;
+
+    const ptsInBin = points.filter(p => p.x >= xmin && p.x < xmax);
+
+    if (ptsInBin.length > 0) {
+      const yMean = ptsInBin.reduce((sum, p) => sum + p.y, 0) / ptsInBin.length;
+      rawScores.push(yToScore(yMean));
+    } else {
+      rawScores.push(null);
+    }
+  }
+
+  // interpolation linéaire des valeurs nulles
+  const scores = [...rawScores];
+
+  // remplit depuis la gauche
+  let firstKnown = scores.findIndex(v => v !== null);
+  if (firstKnown > 0) {
+    for (let i = 0; i < firstKnown; i++) scores[i] = scores[firstKnown];
+  }
+
+  // remplit depuis la droite
+  let lastKnown = -1;
+  for (let i = scores.length - 1; i >= 0; i--) {
+    if (scores[i] !== null) {
+      lastKnown = i;
+      break;
+    }
+  }
+  if (lastKnown >= 0 && lastKnown < scores.length - 1) {
+    for (let i = lastKnown + 1; i < scores.length; i++) scores[i] = scores[lastKnown];
+  }
+
+  // interpolation des trous internes
+  let i = 0;
+  while (i < scores.length) {
+    if (scores[i] !== null) {
+      i++;
+      continue;
+    }
+
+    let start = i - 1;
+    let j = i;
+    while (j < scores.length && scores[j] === null) j++;
+    let end = j;
+
+    if (start >= 0 && end < scores.length && scores[start] !== null && scores[end] !== null) {
+      const gap = end - start;
+      for (let k = 1; k < gap; k++) {
+        const t = k / gap;
+        scores[start + k] = Number((scores[start] + t * (scores[end] - scores[start])).toFixed(2));
+      }
+    }
+
+    i = j;
+  }
+
+  return scores.map(v => v === null ? 0 : Number(v.toFixed(2)));
+}
+
+/* ================= EXPORT VERS LIMESURVEY ================= */
+saveBtn.addEventListener("click", () => {
+  if (hasValidated) return;
+
+  const scores = buildScores(); // produit exactement 50 points
+
+  const payload = {
+    points: scores
+  };
+
+  window.parent.postMessage(
+    {
+      type: "graphData",
+      payload: payload
+    },
+    "*"
+  );
+
+  info.innerHTML = "Merci ! Votre réponse a été enregistrée.";
+  info.style.color = "black";
+
+  saveBtn.disabled = true;
+  resetBtn.disabled = true;
+  hasValidated = true;
+  canvas.style.pointerEvents = "none";
+});
+</script>
+
+</body>
+</html>
