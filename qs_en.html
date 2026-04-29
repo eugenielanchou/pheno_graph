@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -67,23 +67,23 @@
   <div id="info"></div>
   <canvas id="canvas"></canvas>
   <div class="buttons">
-    <button id="reset" type="button">Recommencer</button>
-    <button id="save" type="button" disabled>Valider</button>
+    <button id="reset" type="button">Reset</button>
+    <button id="save" type="button" disabled>Confirm</button>
   </div>
 </div>
 
 <script>
 /* ================= CONSTANTES ================= */
 const CONSIGNE_HTML =
-  "Veuillez tracer <b>une seule courbe</b> allant du <b>début jusqu'à la fin</b> de l’intervalle de temps.";
+  "Please start at the <b><u>beginning</u></b> of the time interval.";
 const FEEDBACK_INCOMPLET_DEBUT_HTML =
   "Veuillez commencer au <b><u>début</u></b> de l’intervalle de temps.";
 const FEEDBACK_INCOMPLET_DEBUT_PUIS_OK_HTML =
-  "Merci ! Maintenant, continuez jusqu’à la fin de l’intervalle.";
+  "Thank you! Now continue until the end of the interval.";
 const FEEDBACK_INCOMPLET_FIN_HTML =
-  "Veuillez tracer jusqu’à la <b><u>fin</u></b> de l’intervalle de temps.";
+  "Please draw up to the <b><u>end</u></b> of the time interval.";
 const FEEDBACK_FIN_HTML =
-  "Merci ! Vous pouvez <b>valider</b> ou <b>recommencer</b>.";
+  "Thank you! You can <b>confirm</b> or <b>start over</b>.";
 
 const nPoints = 50;
 const tolerance = 5;
@@ -392,7 +392,7 @@ saveBtn.addEventListener("click", () => {
     "*"
   );
 
-  info.innerHTML = "Merci ! Votre réponse a été enregistrée.";
+  info.innerHTML = "Thank you! Your answer has been recorded.";
   info.style.color = "black";
 
   saveBtn.disabled = true;
