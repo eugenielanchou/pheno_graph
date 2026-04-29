@@ -378,27 +378,39 @@ function buildScores() {
 saveBtn.addEventListener("click", () => {
   if (hasValidated) return;
 
-  const scores = buildScores(); // produit exactement 50 points
+  const scores = buildScores(); // produit tes 50 points
 
-  const payload = {
-    points: scores
-  };
+  // 1. Envoi du message à LimeSurvey (si tu utilises toujours l'iframe)
+  window.parent.postMessage({
+    type: "graphData",
+    payload: { points: scores }
+  }, "*");
 
-  window.parent.postMessage(
-    {
-      type: "graphData",
-      payload: payload
-    },
-    "*"
-  );
+  // 2. Écriture directe dans le champ LimeSurvey (sécurité supplémentaire)
+  const lsInput = window.parent.document.querySelector('input[type="text"], input[id^="answer"]');
+  if (lsInput) {
+    lsInput.value = JSON.stringify(scores);
+  }
 
-  info.innerHTML = "Merci ! Votre réponse a été enregistrée.";
-  info.style.color = "black";
+  // 3. Feedback visuel
+  info.innerHTML = "<b>Merci ! Tracé validé.</b> Vous pouvez maintenant cliquer sur le bouton <b>Suivant</b> en bas de page.";
+  info.style.color = "green";
 
+  // 4. Désactivation de l'interface de tracé
   saveBtn.disabled = true;
   resetBtn.disabled = true;
   hasValidated = true;
   canvas.style.pointerEvents = "none";
+
+  // 5. RÉAFFICHAGE DU BOUTON SUIVANT
+  // On cherche le bouton "Suivant" dans la page LimeSurvey pour le montrer
+  const nextBtn = window.parent.document.getElementById('ls-button-submit') ||
+                  window.parent.document.querySelector('.ls-move-next-btn') ||
+                  window.parent.document.querySelector('button[value="next"]');
+
+  if (nextBtn) {
+    nextBtn.style.setProperty('display', 'inline-block', 'important');
+  }
 });
 </script>
 
