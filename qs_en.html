@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -68,16 +68,16 @@
   <canvas id="canvas"></canvas>
   <div class="buttons">
     <button id="reset" type="button">Reset</button>
-    <button id="save" type="button" disabled>Confirm</button>
+    <button id="save" type="button" disabled>Submit</button>
   </div>
 </div>
 
 <script>
 /* ================= CONSTANTES ================= */
 const CONSIGNE_HTML =
-  "Please start at the <b><u>beginning</u></b> of the time interval.";
+  "Please draw a single curve going <b>from the start to the end</b> of the time interval";
 const FEEDBACK_INCOMPLET_DEBUT_HTML =
-  "Veuillez commencer au <b><u>début</u></b> de l’intervalle de temps.";
+  "Please start at the <b><u>beginning</u></b> of the time interval.";
 const FEEDBACK_INCOMPLET_DEBUT_PUIS_OK_HTML =
   "Thank you! Now continue until the end of the interval.";
 const FEEDBACK_INCOMPLET_FIN_HTML =
@@ -199,12 +199,12 @@ function drawGrid() {
   ctx.fill();
 
   ctx.font = "18px Arial";
-  ctx.fillText("Temps", xEnd - 60, yEnd + 35);
+  ctx.fillText("Time", xEnd - 60, yEnd + 35);
 
   ctx.save();
   ctx.translate(22, h / 2);
   ctx.rotate(-Math.PI / 2);
-  ctx.fillText("Intensité", 0, 0);
+  ctx.fillText("Intensity", 0, 0);
   ctx.restore();
 
   ctx.font = "14px Arial";
@@ -392,7 +392,7 @@ saveBtn.addEventListener("click", () => {
     "*"
   );
 
-  info.innerHTML = "Thank you! Your answer has been recorded.";
+  info.innerHTML = "Merci ! Votre réponse a été enregistrée.";
   info.style.color = "black";
 
   saveBtn.disabled = true;
