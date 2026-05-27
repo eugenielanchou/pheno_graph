@@ -296,7 +296,7 @@
     const { width: w, height: h } = getCssCanvasSize();
 
     state.xStart = w * 0.07;
-    state.xEnd = w * 0.97;
+    state.xEnd = w * 0.93;
     state.yStart = h * 0.06;
     state.yEnd = h * 0.88;
     state.intervalWidth = (state.xEnd - state.xStart) / CONFIG.nPoints;
@@ -375,18 +375,35 @@
     ctx.stroke();
   }
 
-  // Labels axes 
-  ctx.font = "bold 18px Arial";
+  // Labels axes
   ctx.fillStyle = COLORS.axis;
-  ctx.fillText("Temps", state.xEnd - 62, state.yEnd + 34);
 
+  // "Maintenant" sous l’extrémité droite de l’axe X
+  ctx.font = "bold 15px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText("Maintenant", state.xEnd, state.yEnd + 12);
+  
+  // "Temps (min)" centré sous l’axe X, un peu plus bas
+  ctx.font = "bold 18px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText("Temps (min)", (state.xStart + state.xEnd) / 2, state.yEnd + 34);
+  
+  // Axe Y
   ctx.save();
   ctx.translate(40, h / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.font = "bold 18px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   ctx.fillText("Intensité", 0, 0);
   ctx.restore();
-
+  
+  // Remise à zéro des alignements
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
+    
   // Chiffres Y rapprochés de l’axe
   ctx.font = "15px Arial";
   for (let i = 0; i <= 5; i++) {
